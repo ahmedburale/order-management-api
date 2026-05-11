@@ -1,159 +1,137 @@
-# Order Management API — Spring Boot
+# Order Management API
 
-Production-ready REST API for managing customer orders built with Spring Boot 3, PostgreSQL, and Drizzle-style patterns.
+A production-ready REST API for managing customer orders, built with **Spring Boot 3.3**, **Java 21**, and **PostgreSQL**.
 
-## Stack
+## Features
 
-- **Java 21** + **Spring Boot 3.3**
-- **Spring Data JPA** + **Hibernate** + **PostgreSQL**
-- **Lombok** — reduces boilerplate
-- **Jakarta Validation** — request validation
-- **springdoc-openapi** — Swagger UI at `/api/docs`
-- **Spring Boot Actuator** — health endpoints for K8s
+- Full CRUD operations for orders
+- Order lifecycle: `PENDING` -> `PROCESSING` -> `SHIPPED` -> `DELIVERED` (or `CANCELLED`)
+- Aggregate summary endpoint for dashboard analytics
+- Interactive API documentation via Swagger UI
+- Global exception handling with structured error responses
+- Docker and Docker Compose support
 
-## Open in IntelliJ IDEA
+## Tech Stack
 
-1. **File → Open** — select the `order-management-api/` folder
-2. IntelliJ detects Maven automatically and imports the project
-3. Set JDK 21: **File → Project Structure → SDK**
-
-## Prerequisites
-
-- Java 21 (`brew install openjdk@21` on Mac)
-- PostgreSQL running locally
-- Maven (bundled with IntelliJ or `brew install maven`)
-
-## Database Setup
-
-```sql
--- In psql or any PostgreSQL client:
-CREATE DATABASE orders;
-```
-
-Hibernate auto-creates the `orders` table on first boot (`spring.jpa.hibernate.ddl-auto=update`).
-
-## Run Locally
-
-### Option A — IntelliJ Run Config
-
-1. Open `OrderManagementApiApplication.java`
-2. Click the green ▶ button
-3. Set environment variables in **Run → Edit Configurations → Environment Variables**:
-   ```
-   DATABASE_URL=jdbc:postgresql://localhost:5432/orders
-   DB_USERNAME=postgres
-   DB_PASSWORD=your_password
-   ```
-
-### Option B — Terminal
-
-```bash
-export DATABASE_URL=jdbc:postgresql://localhost:5432/orders
-export DB_USERNAME=postgres
-export DB_PASSWORD=your_password
-
-mvn spring-boot:run
-```
-
-### Option C — Local profile
-
-```bash
-mvn spring-boot:run -Dspring-boot.run.profiles=local
-# Edit src/main/resources/application-local.properties with your credentials first
-```
+| Technology | Version |
+|-----------|---------|
+| Spring Boot | 3.3.5 |
+| Java | 21 (LTS) |
+| PostgreSQL | 15+ |
+| Spring Data JPA / Hibernate | 6.5 |
+| SpringDoc OpenAPI | 2.6 |
+| Maven | 3.9+ |
 
 ## API Endpoints
 
-| Method   | Path                  | Description                        |
-|----------|-----------------------|------------------------------------|
-| GET      | `/api/healthz`        | Health check (K8s probe)           |
-| GET      | `/api/orders`         | List all orders (`?status=` filter)|
-| POST     | `/api/orders`         | Create a new order                 |
-| GET      | `/api/orders/summary` | Aggregate counts by status         |
-| GET      | `/api/orders/{id}`    | Get a single order                 |
-| PATCH    | `/api/orders/{id}`    | Update order fields / status       |
-| DELETE   | `/api/orders/{id}`    | Delete an order (204)              |
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/healthz` | Health check |
+| GET | `/api/orders` | List all orders |
+| POST | `/api/orders` | Create order |
+| GET | `/api/orders/{id}` | Get order by ID |
+| PUT | `/api/orders/{id}` | Update order |
+| DELETE | `/api/orders/{id}` | Delete order |
+| GET | `/api/orders/summary` | Status count summary |
+| GET | `/api/docs` | Swagger UI |
 
-## Swagger UI
+## Quick Start
 
-Open **http://localhost:8080/api/docs** in your browser after starting the server.
+### Prerequisites
 
-## Order Lifecycle
+- Java 21 (Eclipse Temurin)
+- Maven 3.9+
+- PostgreSQL (local or Docker)
 
-```
-PENDING → PROCESSING → SHIPPED → DELIVERED
-                ↘           ↘
-              CANCELLED   CANCELLED
-```
+### Run Locally
 
-Use `PATCH /api/orders/{id}` with `{ "status": "PROCESSING" }` to advance the lifecycle.
+1. Create the database:
+   ```bash
+   psql -U postgres -c "CREATE DATABASE orders;"
+   ```
 
-## Example Requests
+2. Set environment variables:
+   ```bash
+   export DB_USERNAME=postgres
+   export DB_PASSWORD=your_password
+   export DATABASE_URL=jdbc:postgresql://localhost:5432/orders
+   ```
 
-```bash
-# Create
-curl -s -X POST http://localhost:8080/api/orders \
-  -H "Content-Type: application/json" \
-  -d '{"customerName":"Alice","product":"Keyboard","quantity":1}'
+3. Run the application:
+   ```bash
+   mvn spring-boot:run
+   ```
 
-# List with status filter
-curl -s "http://localhost:8080/api/orders?status=PENDING"
+4. Open Swagger UI: http://localhost:9090/api/docs
 
-# Summary
-curl -s http://localhost:8080/api/orders/summary
-
-# Advance status
-curl -s -X PATCH http://localhost:8080/api/orders/1 \
-  -H "Content-Type: application/json" \
-  -d '{"status":"PROCESSING"}'
-```
-
-## Build & Docker
+### Run with Docker
 
 ```bash
-# Build JAR
-mvn package -DskipTests
+docker-compose up --build
+```
 
-# Build Docker image
-docker build -t order-management-api:latest .
+Services:
+- API: http://localhost:9090
+- Swagger: http://localhost:9090/api/docs
+- Postgres: localhost:5434
 
-# Run container
-docker run -p 8080:8080 \
-  -e DATABASE_URL=jdbc:postgresql://host.docker.internal:5432/orders \
-  -e DB_USERNAME=postgres \
-  -e DB_PASSWORD=your_password \
-  order-management-api:latest
+### Stop Docker
+
+```bash
+docker-compose down
 ```
 
 ## Project Structure
 
 ```
-src/
-└── main/
-    ├── java/com/orderapi/
-    │   ├── OrderManagementApiApplication.java   ← Entry point
-    │   ├── config/
-    │   │   └── OpenApiConfig.java               ← Swagger config
-    │   ├── controller/
-    │   │   ├── OrderController.java             ← REST endpoints
-    │   │   └── HealthController.java            ← /api/healthz
-    │   ├── dto/
-    │   │   ├── CreateOrderRequest.java
-    │   │   ├── UpdateOrderRequest.java
-    │   │   ├── OrderResponse.java
-    │   │   └── OrderSummaryResponse.java
-    │   ├── entity/
-    │   │   └── Order.java                       ← JPA entity
-    │   ├── enums/
-    │   │   └── OrderStatus.java                 ← PENDING/PROCESSING/...
-    │   ├── exception/
-    │   │   ├── OrderNotFoundException.java
-    │   │   └── GlobalExceptionHandler.java      ← RFC 9457 ProblemDetail
-    │   ├── repository/
-    │   │   └── OrderRepository.java             ← Spring Data JPA
-    │   └── service/
-    │       └── OrderService.java                ← Business logic
-    └── resources/
-        ├── application.properties               ← Main config
-        └── application-local.properties         ← Local dev overrides
+src/main/java/com/orderapi/
+  -- OrderManagementApiApplication.java
+  -- config/
+  |   -- OpenApiConfig.java
+  -- controller/
+  |   -- OrderController.java
+  -- dto/
+  |   -- OrderRequest.java
+  |   -- OrderResponse.java
+  |   -- OrderSummaryResponse.java
+  -- entity/
+  |   -- Order.java
+  -- exception/
+  |   -- OrderNotFoundException.java
+  |   -- GlobalExceptionHandler.java
+  -- repository/
+  |   -- OrderRepository.java
+  -- service/
+      -- OrderService.java
 ```
+
+## Database Schema
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| `id` | `BIGSERIAL` | PRIMARY KEY |
+| `customer_name` | `VARCHAR(255)` | NOT NULL |
+| `product` | `VARCHAR(255)` | NOT NULL |
+| `quantity` | `INTEGER` | NOT NULL, CHECK > 0 |
+| `status` | `VARCHAR(20)` | NOT NULL, DEFAULT 'PENDING' |
+| `created_at` | `TIMESTAMP` | DEFAULT NOW() |
+| `updated_at` | `TIMESTAMP` | Auto-updated |
+
+### Order Status Values
+
+- `PENDING` - Awaiting processing
+- `PROCESSING` - Being prepared
+- `SHIPPED` - Dispatched
+- `DELIVERED` - Received by customer
+- `CANCELLED` - Order cancelled
+
+## Security
+
+- No hardcoded credentials in committed files
+- Database credentials via environment variables
+- `application-local.properties` is gitignored
+- Docker container runs as non-root user
+
+## License
+
+MIT

@@ -1,0 +1,36 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: order-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: Yasmin3#
+      POSTGRES_DB: orders
+    ports:
+      - "5434:5432"   # Changed from 5433:5432 to 5434:5432
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d orders"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: order-api
+    ports:
+      - "9090:9090"
+    environment:
+      DB_USERNAME: postgres
+      DB_PASSWORD: Yasmin3#
+      DATABASE_URL: jdbc:postgresql://postgres:5432/orders
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
